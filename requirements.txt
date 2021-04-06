@@ -1,5 +1,5 @@
 streamlit==0.63.0
 pytube3==9.6.4
-Pillow==7.1.2
+Pillow==8.1.1
 hurry.filesize==0.9
 requests==2.23.0
