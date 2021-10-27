@@ -1,6 +1,6 @@
 # Importação das bibliotecas
 import streamlit as st
-from pytube import YouTube, Stream
+from pytube import YouTube, request, Stream
 from PIL import Image
 import requests
 from io import BytesIO
@@ -13,7 +13,7 @@ def convert(seconds):
     return "%d:%02d:%02d" % (hour, min, sec) 
 
 # Função para exibição dos detalhes e download do vídeo
-def getDetails(yt):
+def getDetails(yt, url):
     st.write('**Título:** ', yt.title)
     st.write('**Autor:** ', yt.author)
     st.write('**Descrição do vídeo:**')
@@ -24,7 +24,7 @@ def getDetails(yt):
     
     ys = yt.streams
 
-    # st.write('**Tamanho aprox.:** ', size(ys.filesize_approx))
+    st.write('**Tamanho aprox.:** ', size(request.filesize(url)))
     
     versoes = {}
     for versao in yt.streams.filter(file_extension='mp4', progressive=True):
@@ -37,7 +37,12 @@ def getDetails(yt):
 @st.cache()
 def downloadVersoes(detail, versao):
     dwn = detail.get_by_itag(versao)
-    dwn.download()
+    return Stream.download(dwn)
+
+def getMime(yt, version):
+    for i in range(len(yt.vid_info['streamingData']['formats'])):
+        if yt.vid_info['streamingData']['formats'][i]['itag'] == version:
+            return yt.vid_info['streamingData']['formats'][i]['mimeType'].split(';')[0]
 
 def listaVersoes(versoes):
     tmp = []
@@ -67,18 +72,22 @@ st.image(thumb, caption=yt.title, use_column_width=True)
 
 # Exibe os detalhes do vídeo e as opções de qualidade
 with st.spinner('Buscando detalhes do vídeo'):
-    details, opcoes = getDetails(yt)
+    details, opcoes = getDetails(yt, url)
     
     versao = listaVersoes(opcoes)
 
-
-# Função do botão de Download
-if st.button('Download Vídeo'):
-    with st.spinner('Baixando vídeo'):
-        downloadVersoes(details, versao)
-
+@st.cache()
+def callback():
     st.success('Vídeo baixado !')
     st.balloons()
-else:
-    st.warning('Clique para baixar')
+
+with open(downloadVersoes(details, versao), "rb") as videoFile:
+    with st.spinner("Baixando Vídeo"):
+        if st.download_button(
+            label="Download Vídeo!",
+            data=videoFile,
+            file_name= yt.title.replace(' ', '_') + '.mp4',
+            mime=getMime(yt, versao)
+        ):
+            callback()
 
