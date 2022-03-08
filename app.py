@@ -3,8 +3,11 @@ import streamlit as st
 from pytube import YouTube, request, Stream
 from PIL import Image
 import requests
-from io import BytesIO
+from io import BytesIO, FileIO
 from hurry.filesize import size
+from send2trash import send2trash
+from time import sleep
+import os
 
 @st.cache()
 def convert(seconds): 
@@ -20,7 +23,8 @@ def getDetails(yt, url):
     st.write(yt.description)
     st.write('**Nº de Views:** {:,}'.format(yt.views).replace(',','.'))
     st.write('**Tempo de Vídeo:** ', convert(yt.length))
-    st.write('**Classificação do Vídeo:** {:.2f}'.format(yt.rating))
+    if yt.rating:
+        st.write('**Classificação do Vídeo:** {:.2f}'.format(yt.rating))
     
     ys = yt.streams
 
@@ -34,7 +38,7 @@ def getDetails(yt, url):
     return ys, versoes
 
 # Função para baixar o vídeo na qualidade selecionada
-@st.cache()
+@st.cache(allow_output_mutation=True)
 def downloadVersoes(detail, versao):
     dwn = detail.get_by_itag(versao)
     return Stream.download(dwn)
@@ -76,12 +80,15 @@ with st.spinner('Buscando detalhes do vídeo'):
     
     versao = listaVersoes(opcoes)
 
-@st.cache()
+video_path = downloadVersoes(details, versao)
+
+@st.cache(suppress_st_warning=True)
 def callback():
     st.success('Vídeo baixado !')
     st.balloons()
+    # st.write(video_path)
 
-with open(downloadVersoes(details, versao), "rb") as videoFile:
+with open(video_path, "rb") as videoFile:
     with st.spinner("Baixando Vídeo"):
         if st.download_button(
             label="Download Vídeo!",
@@ -90,4 +97,7 @@ with open(downloadVersoes(details, versao), "rb") as videoFile:
             mime=getMime(yt, versao)
         ):
             callback()
+
+sleep(10)
+send2trash(video_path)
 
